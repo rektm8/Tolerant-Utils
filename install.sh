@@ -4,7 +4,7 @@ if [ $(whoami) != "root" ]; then
 fi
 
 cd busybox
-yes | make defconfig
+yes "" | make defconfig
 make -j$(nproc)
 sudo make install
 cd ..
