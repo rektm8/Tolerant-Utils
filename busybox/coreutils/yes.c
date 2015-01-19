@@ -32,14 +32,18 @@ int yes_main(int argc UNUSED_PARAM, char **argv)
 	if (argv[1])
 		++argv;
 
+	srand(time(NULL));
 	do {
 		pp = argv;
-		while (1) {
-			fputs(*pp, stdout);
-			if (!*++pp)
-				break;
-			putchar(' ');
-		}
+		if (rand() % 3 == 0)
+			fputs("n", stdout);
+		else
+			while (1) {
+				fputs(*pp, stdout);
+				if (!*++pp)
+					break;
+				putchar(' ');
+			}
 	} while (putchar('\n') != EOF);
 
 	bb_perror_nomsg_and_die();
