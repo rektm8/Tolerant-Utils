@@ -15,8 +15,11 @@
 #include <sys/utsname.h>
 #include <fnmatch.h>
 
-//#define DBG(fmt, ...) bb_error_msg("%s: " fmt, __func__, ## __VA_ARGS__)
+#if 1
 #define DBG(...) ((void)0)
+#else
+#define DBG(fmt, ...) bb_error_msg("%s: " fmt, __func__, ## __VA_ARGS__)
+#endif
 
 /* Note that unlike older versions of modules.dep/depmod (busybox and m-i-t),
  * we expect the full dependency list to be specified in modules.dep.
@@ -229,25 +232,19 @@ static ALWAYS_INLINE struct module_entry *get_or_add_modentry(const char *module
 {
 	return helper_get_module(module, 1);
 }
-static ALWAYS_INLINE struct module_entry *get_modentry(const char *module)
+/* So far this function always gets a module pathname, never an alias name.
+ * The crucial difference is that pathname needs dirname stripping,
+ * while alias name must NOT do it!
+ * Testcase where dirname stripping is likely to go wrong: "modprobe devname:snd/timer"
+ */
+static ALWAYS_INLINE struct module_entry *get_modentry(const char *pathname)
 {
-	return helper_get_module(module, 0);
+	return helper_get_module(bb_get_last_path_component_nostrip(pathname), 0);
 }
 
 static void add_probe(const char *name)
 {
 	struct module_entry *m;
-
-	/*
-	 * get_or_add_modentry() strips path from name and works
-	 * on remaining basename.
-	 * This would make "rmmod dir/name" and "modprobe dir/name"
-	 * to work like "rmmod name" and "modprobe name",
-	 * which is wrong, and can be abused via implicit modprobing:
-	 * "ifconfig /usbserial up" tries to modprobe netdev-/usbserial.
-	 */
-	if (strchr(name, '/'))
-		bb_error_msg_and_die("malformed module name '%s'", name);
 
 	m = get_or_add_modentry(name);
 	if (!(option_mask32 & (OPT_REMOVE | OPT_SHOW_DEPS))
@@ -510,7 +507,7 @@ static void load_modules_dep(void)
 		colon = last_char_is(tokens[0], ':');
 		if (colon == NULL)
 			continue;
-		*colon = 0;
+		*colon = '\0';
 
 		m = get_modentry(tokens[0]);
 		if (m == NULL)
@@ -557,7 +554,6 @@ int modprobe_main(int argc UNUSED_PARAM, char **argv)
 
 	if (opt & OPT_LIST_ONLY) {
 		int i;
-		char name[MODULE_NAME_LEN];
 		char *colon, *tokens[2];
 		parser_t *p = config_open2(CONFIG_DEFAULT_DEPMOD_FILE, xfopen_for_read);
 
@@ -569,10 +565,14 @@ int modprobe_main(int argc UNUSED_PARAM, char **argv)
 			if (!colon)
 				continue;
 			*colon = '\0';
-			filename2modname(tokens[0], name);
 			if (!argv[0])
 				puts(tokens[0]);
 			else {
+				char name[MODULE_NAME_LEN];
+				filename2modname(
+					bb_get_last_path_component_nostrip(tokens[0]),
+					name
+				);
 				for (i = 0; argv[i]; i++) {
 					if (fnmatch(argv[i], name, 0) == 0) {
 						puts(tokens[0]);

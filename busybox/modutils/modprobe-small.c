@@ -149,14 +149,27 @@ static void replace(char *s, char what, char with)
 static char *filename2modname(const char *filename, char *modname)
 {
 	int i;
-	char *from;
+	const char *from;
 
-	from = bb_get_last_path_component_nostrip(filename);
+	// Disabled since otherwise "modprobe dir/name" would work
+	// as if it is "modprobe name". It is unclear why
+	// 'basenamization' was here in the first place.
+	//from = bb_get_last_path_component_nostrip(filename);
+	from = filename;
 	for (i = 0; i < (MODULE_NAME_LEN-1) && from[i] != '\0' && from[i] != '.'; i++)
 		modname[i] = (from[i] == '-') ? '_' : from[i];
 	modname[i] = '\0';
 
 	return modname;
+}
+
+static int pathname_matches_modname(const char *pathname, const char *modname)
+{
+	int r;
+	char name[MODULE_NAME_LEN];
+	filename2modname(bb_get_last_path_component_nostrip(pathname), name);
+	r = (strcmp(name, modname) == 0);
+	return r;
 }
 
 /* Take "word word", return malloced "word",NUL,"word",NUL,NUL */
@@ -289,18 +302,6 @@ static void parse_module(module_info *info, const char *pathname)
 	info->deps = copy_stringbuf();
 
 	free(module_image);
-}
-
-static int pathname_matches_modname(const char *pathname, const char *modname)
-{
-	int r;
-	char name[MODULE_NAME_LEN];
-	const char *fname = bb_get_last_path_component_nostrip(pathname);
-	const char *suffix = strrstr(fname, ".ko");
-	safe_strncpy(name, fname, suffix - fname + 1);
-	replace(name, '-', '_');
-	r = (strcmp(name, modname) == 0);
-	return r;
 }
 
 static FAST_FUNC int fileAction(const char *pathname,
@@ -631,6 +632,14 @@ static void process_module(char *name, const char *cmdline_options)
 		infovec = find_alias(name);
 	}
 
+	if (!infovec) {
+		/* both dirscan and find_alias found nothing */
+		if (!is_rmmod && applet_name[0] != 'd') /* it wasn't rmmod or depmod */
+			bb_error_msg("module '%s' not found", name);
+//TODO: _and_die()? or should we continue (un)loading modules listed on cmdline?
+		goto ret;
+	}
+
 	/* There can be more than one module for the given alias. For example,
 	 * "pci:v00008086d00007010sv00000000sd00000000bc01sc01i80" matches
 	 * ata_piix because it has alias "pci:v00008086d00007010sv*sd*bc*sc*i*"
@@ -646,7 +655,8 @@ static void process_module(char *name, const char *cmdline_options)
 			int r;
 			char modname[MODULE_NAME_LEN];
 
-			filename2modname(info->pathname, modname);
+			filename2modname(
+				bb_get_last_path_component_nostrip(info->pathname), modname);
 			r = delete_module(modname, O_NONBLOCK | O_EXCL);
 			dbg1_error_msg("delete_module('%s', O_NONBLOCK | O_EXCL):%d", modname, r);
 			if (r != 0) {
@@ -667,14 +677,6 @@ static void process_module(char *name, const char *cmdline_options)
 		 * If the modules it depends on are also unused, modprobe
 		 * will try to remove them, too."
 		 */
-	}
-
-	if (!infovec) {
-		/* both dirscan and find_alias found nothing */
-		if (!is_rmmod && applet_name[0] != 'd') /* it wasn't rmmod or depmod */
-			bb_error_msg("module '%s' not found", name);
-//TODO: _and_die()? or should we continue (un)loading modules listed on cmdline?
-		goto ret;
 	}
 
 	infoidx = 0;
