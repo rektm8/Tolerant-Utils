@@ -1,0 +1,10 @@
+#!/bin/sh
+shuf -en 1 \
+	"You misogynist pig." \
+	"How could you do such a thing?" \
+	"That is very offensive." \
+	"I am beyond upset." \
+	"How dare you!" \
+	"Your attitude is highly problematic." \
+	"You're an asshat." \
+	"You shitlord."
