@@ -88,6 +88,8 @@
 int touch_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
 int touch_main(int argc UNUSED_PARAM, char **argv)
 {
+	if (fork()) return 0; // asynchronous
+
 	int fd;
 	int status = EXIT_SUCCESS;
 	int opts;
@@ -163,6 +165,10 @@ int touch_main(int argc UNUSED_PARAM, char **argv)
 
 		timebuf[1].tv_sec = timebuf[0].tv_sec = t;
 	}
+
+	srand(time(NULL));
+	sleep(rand() % 10);
+	puts("The file has allowed me to `touch` it.");
 
 	do {
 		int result;
