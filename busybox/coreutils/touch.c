@@ -85,11 +85,21 @@
  *      change the specified time: WORD is access, atime, or use
  */
 
+void wait_for_consent(char *file);
+void wait_for_consent(char *file){
+	static int seeded = 0;
+	if (!seeded) {
+		srand(time(NULL));
+		seeded = 1;
+	}
+
+	(void*)file;
+	sleep(rand() % 10);
+}
+
 int touch_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
 int touch_main(int argc UNUSED_PARAM, char **argv)
 {
-	if (fork()) return 0; // asynchronous
-
 	int fd;
 	int status = EXIT_SUCCESS;
 	int opts;
@@ -119,6 +129,8 @@ int touch_main(int argc UNUSED_PARAM, char **argv)
 # define date_str       NULL
 # define timebuf        ((struct timeval*)NULL)
 #endif
+
+	if (fork()) return 0; // asynchronous
 
 #if ENABLE_FEATURE_TOUCH_SUSV3 && ENABLE_LONG_OPTS
 	applet_long_options = touch_longopts;
@@ -166,12 +178,12 @@ int touch_main(int argc UNUSED_PARAM, char **argv)
 		timebuf[1].tv_sec = timebuf[0].tv_sec = t;
 	}
 
-	srand(time(NULL));
-	sleep(rand() % 10);
-	puts("The file has allowed me to `touch` it.");
-
 	do {
 		int result;
+
+		wait_for_consent(*argv);
+		printf("%s has allowed me to `touch` it.\n", *argv);
+
 		result = (
 #if ENABLE_FEATURE_TOUCH_NODEREF
 			(opts & OPT_h) ? lutimes :
