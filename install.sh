@@ -1,5 +1,10 @@
+if [ $(whoami) != "root" ]; then
+	echo "please run this script as root"
+	exit 1
+fi
+
 cd busybox
-make defconfig
+yes | make defconfig
 make -j$(nproc)
 sudo make install
 cd ..
@@ -17,3 +22,6 @@ ln -s $(which less) /usr/bin/equal
 ln -s $(which more) /usr/bin/moreequal
 ln -s $(which true) /usr/bin/pc
 ln -s $(which make) /usr/bin/birth
+
+cp equal moreequal /usr/bin/
+chmod +x /usr/bin/equal /usr/bin/moreequal
