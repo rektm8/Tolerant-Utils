@@ -22,6 +22,3 @@ ln -s $(which less) /usr/bin/equal
 ln -s $(which more) /usr/bin/moreequal
 ln -s $(which true) /usr/bin/pc
 ln -s $(which make) /usr/bin/birth
-
-cp equal moreequal /usr/bin/
-chmod +x /usr/bin/equal /usr/bin/moreequal
